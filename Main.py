@@ -1,17 +1,17 @@
 import pygame
 
+from config import WINDOW_WIDTH, WINDOW_HEIGHT
 from objects.ships.Ships import SmallShip, MediumShip, LargeShip
+from objects.ui.UI import MAX_POWER, UI, MAX_HEALTH
 from objects.weapons.PlayerBall import PlayerBall
 
 pygame.init()
-WINDOW_WIDTH = 1000
-WINDOW_HEIGHT = 600
 surface = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT),0,32)
 pygame.display.set_caption('follow mouse')
 surface.fill((0,0,0))
 blood_splashes = []
 power = 0
-MAX_POWER = 100
+health = MAX_HEALTH
 charging = False
 state = 0
 last_wave_time = 0
@@ -28,26 +28,13 @@ waves = [pygame.image.load("images/wave1.png"),
 enemy_cannonballs = []
 
 ships = [
-    SmallShip(surface, 600, 4),
-    MediumShip(surface, 600, 3),
-    LargeShip(surface, 600, 2),
-    MediumShip(surface, 600, 1),
+    SmallShip(surface, 4),
+    MediumShip(surface, 3),
+    LargeShip(surface,2),
+    MediumShip(surface, 1),
 ]
 cannonballs = []
-
-
-def draw_power_bar():
-    bar_width = 300
-    bar_height = 20
-    x = 50
-    y = WINDOW_HEIGHT - 50
-
-    pygame.draw.rect(surface, (50, 50, 50), (x, y, bar_width, bar_height))
-
-    fill_width = int((power / MAX_POWER) * bar_width)
-    pygame.draw.rect(surface, (255, 0, 0), (x, y, fill_width, bar_height))
-
-    pygame.draw.rect(surface, (255, 255, 255), (x, y, bar_width, bar_height), 2)
+ui = UI(surface)
 
 def scope():
     x, y = pygame.mouse.get_pos()
@@ -88,7 +75,7 @@ def draw(state, last_wave_time):
         ball.move()
 
     scope()
-    draw_power_bar()
+    ui.draw(power, health)
     return state, last_wave_time
 
 def shoot(cannonballs, power):
@@ -108,7 +95,7 @@ def shoot(cannonballs, power):
     cannonballs += [PlayerBall(surface, x, power_level)]
     return
 
-def interact(cannonballs):
+def interact(cannonballs, health):
     for ship in ships:
         shot = ship.shoot()
         if shot:
@@ -122,9 +109,10 @@ def interact(cannonballs):
 
     for enemy_ball in enemy_cannonballs:
         if enemy_ball.y > 600:
+            health -= 1
             enemy_ball.hit()
 
-    return [ball for ball in enemy_cannonballs if not ball.landed], [ball for ball in cannonballs if not ball.landed]
+    return health, [ball for ball in enemy_cannonballs if not ball.landed], [ball for ball in cannonballs if not ball.landed]
 
 while True:
     for event in pygame.event.get():
@@ -139,7 +127,7 @@ while True:
     if charging and power < MAX_POWER:
         power += 1
 
-    enemy_cannonballs, cannonballs = interact(cannonballs)
+    health, enemy_cannonballs, cannonballs = interact(cannonballs, health)
     state, last_wave_time = draw(state, last_wave_time)
 
     pygame.display.update()
