@@ -1,133 +1,56 @@
 import pygame
-
+import pygame_menu
+from pygame_menu.examples import create_example_window
 from config import WINDOW_WIDTH, WINDOW_HEIGHT
-from objects.ships.Ships import SmallShip, MediumShip, LargeShip
-from objects.ui.UI import MAX_POWER, UI, MAX_HEALTH
-from objects.weapons.PlayerBall import PlayerBall
+from Game import Game
+FPS = 60
 
-pygame.init()
-surface = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT),0,32)
-pygame.display.set_caption('follow mouse')
-surface.fill((0,0,0))
-blood_splashes = []
-power = 0
-health = MAX_HEALTH
-charging = False
-state = 0
-last_wave_time = 0
-WAVE_INTERVAL = 500
+game = Game()
+background_image = pygame_menu.BaseImage(
+    image_path='menu_background.jpg'
+)
 
-background = pygame.image.load("images/background.png")
+def start_game():
+    game = Game()
+    game.run()
 
-waves = [pygame.image.load("images/wave1.png"),
-         pygame.image.load("images/wave2.png"),
-         pygame.image.load("images/wave3.png"),
-         pygame.image.load("images/wave4.png"),
-         pygame.image.load("images/wave5.png")]
+def main_background() -> None:
+    background_image.draw(surface)
 
-enemy_cannonballs = []
+def main(test: bool = False) -> None:
+    global main_menu
+    global surface
 
-ships = [
-    SmallShip(surface, 4),
-    MediumShip(surface, 3),
-    LargeShip(surface,2),
-    MediumShip(surface, 1),
-]
-cannonballs = []
-ui = UI(surface)
+    surface = create_example_window('Pirate Game', (WINDOW_WIDTH, WINDOW_HEIGHT))
+    clock = pygame.time.Clock()
 
-def scope():
-    x, y = pygame.mouse.get_pos()
-    overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
-    overlay.fill((0, 0, 0, 255))
-
-    pygame.draw.circle(
-        overlay,
-        (0, 0, 0, 0),
-        (x, 300),
-        300
+    main_menu_theme = pygame_menu.themes.THEME_DEFAULT.copy()
+    main_menu_theme.set_background_color_opacity(0.4)  # 50% opacity
+    main_menu = pygame_menu.Menu(
+        height=WINDOW_HEIGHT* 0.7,
+        onclose=pygame_menu.events.EXIT,  # User press ESC button
+        theme=main_menu_theme,
+        title='Pirate Game',
+        width=WINDOW_WIDTH * 0.8
     )
 
-    # Black background
-    surface.blit(overlay, (1, 0))
-    pygame.draw.line(surface, (255, 255, 255), (x - 75, 300), (x + 75, 300), 2)
-    pygame.draw.line(surface, (255, 255, 255), (x, 300 - 75), (x, 300 + 75), 2)
+    theme_bg_image = main_menu_theme.copy()
+    theme_bg_image.background_color = pygame_menu.BaseImage(
+        image_path=pygame_menu.baseimage.IMAGE_EXAMPLE_CARBON_FIBER
+    )
+    theme_bg_image.title_font_size = 25
 
-def draw(state, last_wave_time):
-    current_time = pygame.time.get_ticks()
-    if current_time - last_wave_time >= WAVE_INTERVAL:
-        state = (state + 1) % len(waves)
-        last_wave_time = current_time
+    main_menu.add.button('Play', start_game)
+    main_menu.add.button('Quit', pygame_menu.events.EXIT)
 
-    surface.fill((80, 120, 160))
-    surface.blit(background, (0, 0))
-    surface.blit(waves[state], (0, 0))
-    for ship in ships:
-        ship.draw()
-        ship.move()
+    # Main loop
+    while True:
+        clock.tick(FPS)
+        main_menu.mainloop(surface, main_background, disable_loop=test, fps_limit=FPS)
 
-    for ball in cannonballs:
-        ball.draw()
-        ball.move()
+        if test:
+            break
 
-    for ball in enemy_cannonballs:
-        ball.draw()
-        ball.move()
 
-    scope()
-    ui.draw(power, health)
-    return state, last_wave_time
-
-def shoot(cannonballs, power):
-    if power < 10:
-        power_level = 0
-    elif power < 30:
-        power_level = 1
-    elif power < 50:
-        power_level = 2
-    elif power < 70:
-        power_level = 3
-    elif power < 90:
-        power_level = 4
-    else:
-        power_level = 5
-    x, _ = pygame.mouse.get_pos()
-    cannonballs += [PlayerBall(surface, x, power_level)]
-    return
-
-def interact(cannonballs, health):
-    for ship in ships:
-        shot = ship.shoot()
-        if shot:
-            enemy_cannonballs.append(shot)
-        for ball in cannonballs:
-            # Check left and right
-            if ball.x - ball.size > ship.rect.bottomleft[0] and ball.x + ball.size < ship.rect.bottomright[0]:
-                if ball.level == ship.level and ball.y < ship.y:
-                    ship.hit()
-                    ball.hit()
-
-    for enemy_ball in enemy_cannonballs:
-        if enemy_ball.y > 600:
-            health -= 1
-            enemy_ball.hit()
-
-    return health, [ball for ball in enemy_cannonballs if not ball.landed], [ball for ball in cannonballs if not ball.landed]
-
-while True:
-    for event in pygame.event.get():
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            charging = True
-
-        if event.type == pygame.MOUSEBUTTONUP:
-            charging = False
-            shoot(cannonballs, power)
-            power = 0
-
-    if charging and power < MAX_POWER:
-        power += 1
-
-    health, enemy_cannonballs, cannonballs = interact(cannonballs, health)
-    state, last_wave_time = draw(state, last_wave_time)
-
-    pygame.display.update()
+if __name__ == '__main__':
+    main()
